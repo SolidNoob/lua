@@ -12,6 +12,7 @@ function Snake:new(x, y, width, height, speed, direction)
         width = width,
         height = height,
         direction = direction,
+        nextDirection = nextDirection,
         xTarget = 0,
         yTarget = 0,
         targetReached = false
@@ -52,26 +53,48 @@ function Snake:move(dt)
   for n=#self.elements, 1, -1 do
     if n == 1 then
       local head = self.elements[1]
+      local currentXCell = math.floor(head.x / head.width) + 1
+      local currentYCell = math.floor(head.y / head.height) + 1
+      print(head.x, head.xTarget, head.y, head.yTarget, currentXCell, currentYCell, head.direction, head.nextDirection)
       if head.direction == 'UP' then
+        head.yTarget = head.height * (currentYCell - 1)
         head.y = head.y - head.height * dt * self.speed * 10
         if head.y <= head.yTarget then
           head.targetReached = true
+          if head.direction ~= head.nextDirection then
+            head.y = head.yTarget
+          end
+          head.direction = head.nextDirection
         end
       elseif head.direction == 'DOWN' then
+        head.yTarget = head.height * (currentYCell + 0)
         head.y = head.y + head.height * dt * self.speed * 10
         if head.y >= head.yTarget then
           head.targetReached = true
+          if head.direction ~= head.nextDirection then
+            head.y = head.yTarget
+          end
+          head.direction = head.nextDirection
         end
       elseif head.direction == 'RIGHT' then
+        head.xTarget = head.width * (currentXCell + 0)
         head.x = head.x + head.width * dt * self.speed * 10
-        print(head.x, head.xTarget)
         if head.x >= head.xTarget then
           head.targetReached = true
+          if head.direction ~= head.nextDirection then
+            head.x = head.xTarget
+          end
+          head.direction = head.nextDirection
         end
       elseif head.direction == 'LEFT' then
+        head.xTarget = head.width * (currentXCell - 1)
         head.x = head.x - head.width * dt * self.speed * 10
         if head.x <= head.xTarget then
           head.targetReached = true
+          if head.direction ~= head.nextDirection then
+            head.x = head.xTarget
+          end
+          head.direction = head.nextDirection
         end
       end
     else

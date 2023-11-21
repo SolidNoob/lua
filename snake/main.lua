@@ -30,33 +30,28 @@ function love.update(dt)
   snake:move(dt)
   
   local head = snake.elements[1]
-  local currentXCell = math.floor(head.x / head.width)
-  local currentYCell = math.floor(head.y / head.height)
   
-  if head.targetReached then
-    head.targetReached = false
-    
-    if love.keyboard.isDown('left') and head.direction ~= 'RIGHT' then
-      head.direction = 'LEFT'
-      head.xTarget = head.width * (currentXCell - 1)
-    end
-
-    if love.keyboard.isDown('right') and head.direction ~= 'LEFT' then
-      head.direction = 'RIGHT'
-      head.xTarget = head.width * (currentXCell + 1)
-    end
-    
-    if love.keyboard.isDown('up') and head.direction ~= 'DOWN' then
-      head.direction = 'UP'
-      head.yTarget = head.height * (currentYCell - 1)
-    end
-
-    if love.keyboard.isDown('down') and head.direction ~= 'UP' then
-      head.direction = 'DOWN'
-      head.yTarget = head.height * (currentYCell + 1)
-    end
-    
+  
+  if love.keyboard.isDown('left') and head.direction ~= 'RIGHT' then
+    head.nextDirection = 'LEFT'
+    --head.xTarget = head.width * (currentXCell - 1)
   end
+
+  if love.keyboard.isDown('right') and head.direction ~= 'LEFT' then
+    head.nextDirection = 'RIGHT'
+    --head.xTarget = head.width * (currentXCell + 1)
+  end
+  
+  if love.keyboard.isDown('up') and head.direction ~= 'DOWN' then
+    head.nextDirection = 'UP'
+    --head.yTarget = head.height * (currentYCell - 1)
+  end
+
+  if love.keyboard.isDown('down') and head.direction ~= 'UP' then
+    head.nextDirection = 'DOWN'
+    --head.yTarget = head.height * (currentYCell + 1)
+  end
+    
   
   
   
@@ -65,6 +60,8 @@ function love.update(dt)
   end
   
   if love.keyboard.isDown('escape') then
+    --print('EXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXIT')
+    --os.exit()
     initGame()
   end
 end
@@ -104,6 +101,7 @@ end
 
 function love.keypressed(key)
   if key == 'space' then 
+    --snake.speed = snake.speed * 2
     snake:addElement() 
   end
 end
@@ -117,7 +115,8 @@ function initGame()
       y = screenHeight / 2,
       width = 20,
       height = 20,
-      direction = 'RIGHT'
+      direction = 'RIGHT',
+      nextDirection = 'RIGHT'
     }
   }
   snake.elements[1].xTarget = snake.elements[1].x + snake.elements[1].width
