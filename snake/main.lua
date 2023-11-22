@@ -4,9 +4,11 @@ if arg[#arg] == "-debug" then require("mobdebug").start() end
 
 require 'functions/sounds'
 Snake = require 'class/Snake'
+Apple = require 'class/Apple'
 
 local grid = {}
 local snake = Snake:new(0, 0, 0, 0, 0, '')
+local apple = Apple:new(0, 0, 0, 0)
 
 function love.load()  
   screenWidth = love.graphics.getWidth()
@@ -34,22 +36,23 @@ function love.update(dt)
   
   if love.keyboard.isDown('left') and head.direction ~= 'RIGHT' then
     head.nextDirection = 'LEFT'
-    --head.xTarget = head.width * (currentXCell - 1)
   end
 
   if love.keyboard.isDown('right') and head.direction ~= 'LEFT' then
     head.nextDirection = 'RIGHT'
-    --head.xTarget = head.width * (currentXCell + 1)
   end
   
   if love.keyboard.isDown('up') and head.direction ~= 'DOWN' then
     head.nextDirection = 'UP'
-    --head.yTarget = head.height * (currentYCell - 1)
   end
 
   if love.keyboard.isDown('down') and head.direction ~= 'UP' then
     head.nextDirection = 'DOWN'
-    --head.yTarget = head.height * (currentYCell + 1)
+  end
+  
+  
+  if collisionWithApple() then
+    snake:addElement()
   end
     
   
@@ -83,6 +86,10 @@ function love.draw()
     love.graphics.rectangle("fill", currentElement.x, currentElement.y, currentElement.width, currentElement.height)
     love.graphics.setColor(1, 1, 1, 1)
   end
+  
+  love.graphics.setColor(1, 0, 0, 1)
+  love.graphics.rectangle("fill", apple.x, apple.y, apple.width, apple.height)
+  love.graphics.setColor(1, 1, 1, 1)
   
   nbRows = screenHeight / snake.elements[1].height
   nbColumns = screenWidth / snake.elements[1].width
@@ -120,14 +127,52 @@ function initGame()
     }
   }
   snake.elements[1].xTarget = snake.elements[1].x + snake.elements[1].width
+  
+  apple.width = 20
+  apple.height = 20
+  apple:pop(500, 300)
+  
 end
 
- 
---function initGrid()
---for row = 1, 40 do
---for column = 1, 60 do
---grid[row][column] = 0
---end
---end
---end
+
+
+function collisionWithApple()
+  
+  -- pour etre plus précis en cas de haute vitesse: calculer le "spectre" du déplacement, et vérifier si la pomme se trouve dedans
+  --[[
+  local head = snake.elements[1]
+  local collision = false
+  if head.direction == 'UP' then
+    if head.x >= apple.x and head.x < apple.x + apple.width and head.y <= apple.y + apple.height and head.y >= apple.y then
+      collision = true
+    end
+  elseif head.direction == 'DOWN' then
+    if head.x >= apple.x and head.x < apple.x + apple.width and head.y + head.height >= apple.y and head.y <= apple.y + apple.height then
+      collision = true
+    end
+  elseif head.direction == 'RIGHT' then
+    if head.x + head.width >= apple.x and head.x <= apple.x + apple.width and head.y >= apple.y and head.y < apple.y + apple.height then
+      collision = true
+    end
+  elseif head.direction == 'LEFT' then
+    if head.x <= apple.x + apple.width and head.x + head.width > apple.x and head.y >= apple.y and head.y < apple.y + apple.height then
+      collision = true
+    end
+  end
+  
+  if collision then
+    snake:addElement()
+    apple.x = 0
+    apple.y = 0
+  end
+  ]]--
+
+  local head = snake.elements[1]
+  if head.previousXCell == apple.currentXCell and head.previousYCell == apple.currentYCell then
+    if head.previousXCell ~= head.currentXCell or head.previousYCell ~= head.currentYCell then
+      snake:addElement()
+      apple:pop(200, 300)
+    end
+  end
+end
 
