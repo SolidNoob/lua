@@ -30,6 +30,10 @@ function love.update(dt)
   end
   ]]--
   snake:move(dt)
+  local selfCollision = snake:selfCollision()
+  if selfCollision then
+    --initGame()
+  end
   
   local head = snake.elements[1]
   
@@ -65,6 +69,7 @@ function love.update(dt)
   if love.keyboard.isDown('escape') then
     --print('EXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXITEXIT')
     --os.exit()
+    
     initGame()
   end
 end
@@ -123,6 +128,7 @@ function initGame()
       width = 20,
       height = 20,
       direction = 'RIGHT',
+      previousDirection = 'RIGHT',
       nextDirection = 'RIGHT'
     }
   }
