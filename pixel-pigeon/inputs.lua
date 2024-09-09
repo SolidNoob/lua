@@ -5,9 +5,10 @@ function love.keypressed(key)
         print("Pause toggle: ", GameState.isPaused)  -- Vérifier avec un print
     end
 
-    -- Si la touche espace est pressée, faire sauter l'oiseau (si non en pause)
-    if not GameState.isPaused and (key == "space" or key == 'up') then
+    if not GameState.isPaused then 
+      if key == "space" then
         jump()
+      end
     end
 end
 
