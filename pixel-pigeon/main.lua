@@ -1,93 +1,103 @@
--- Cette ligne permet d'afficher des traces dans la console pendant l'éxécution
+-- Afficher des traces dans la console pendant l'exécution
 io.stdout:setvbuf('no')
 
--- Empêche Love de filtrer les contours des images quand elles sont redimensionnées
+-- Empêche Love de filtrer les contours des images pour du pixel art
 love.graphics.setDefaultFilter("nearest")
 
--- Cette ligne permet de déboguer pas à pas dans ZeroBraneStudio
+-- Débogage dans ZeroBraneStudio
 if arg[#arg] == "-debug" then require("mobdebug").start() end
 
 require("inputs")
 
--- Table pour stocker l'état global du jeu
 GameState = {
-    isPaused = false  -- Variable pour gérer l'état de pause
+    isPaused = false  -- Gestion de la pause
 }
 
 local pigeon = {}
-
-local pipes = {}  -- Table qui contiendra toutes les paires de tuyaux
+local pipes = {}
+local particles = {}
+local colors = {}
+local colorIndex = 1
 local pipeWidth = 30
-local pipeGap = 300  -- Espace entre les tuyaux (haut/bas)
-local pipeSpawnInterval = 0.5  -- Intervalle de temps entre l'apparition de chaque tuyau
+local pipeGap = 300
+local pipeSpawnInterval = 0.5
 local timer = 0
 
-local colors = {} -- Table pour stocker les couleurs progressives
-local colorIndex = 1  -- Indice pour suivre la couleur actuelle
-
--- Fonction de chargement : initialisation du jeu
+-- Initialisation du jeu
 function love.load()
-    -- Cette fonction est appelée une seule fois au début
-  
-  screenWidth = love.graphics.getWidth()
-  screenHeight = love.graphics.getHeight()
-  
-  pigeon.x = 50     -- Position X initiale
-  pigeon.y = 300    -- Position Y initiale
-  pigeon.width = 20 -- Largeur de l'oiseau
-  pigeon.height = 20 -- Hauteur de l'oiseau
-  pigeon.gravity = 500  -- Gravité qui affecte l'oiseau
-  pigeon.jumpHeight = -300  -- Hauteur du saut
-  pigeon.velocityY = 0  -- Vitesse verticale de l'oiseau
-  pigeon.speed = 1000
-  pigeon.color = {1, 1, 0}  -- Couleur initiale jaune
+    screenWidth = love.graphics.getWidth()
+    screenHeight = love.graphics.getHeight()
 
-  -- Appel de la fonction pour générer les couleurs au démarrage du jeu
-  generateColors()
+    pigeon.x = 300
+    pigeon.y = 300
+    pigeon.width = 20
+    pigeon.height = 20
+    pigeon.speed = 1000
+    pigeon.color = {1, 1, 0}
+    pigeon.rotation = 0
+    
+    generateColors()
 end
 
--- Fonction pour générer la suite de couleurs progressives
+-- Générer la suite de couleurs pour les tuyaux
 function generateColors()
-    -- Vert vers bleu
+    -- Vert vers Cyan
     for i = 0, 4 do
-        table.insert(colors, {0, 1 - i * 0.2, i * 0.2})  -- De vert à bleu
+        table.insert(colors, {0, 1, i * 0.2})  -- De vert à cyan
     end
-    
-    -- Bleu vers mauve
+
+    -- Cyan vers Bleu
+    for i = 0, 4 do
+        table.insert(colors, {0, 1 - i * 0.2, 1})  -- De cyan à bleu
+    end
+
+    -- Bleu vers Mauve
     for i = 0, 4 do
         table.insert(colors, {i * 0.2, 0, 1})  -- De bleu à mauve
     end
-    
-    -- Mauve vers rose
+
+    -- Mauve vers Rose
     for i = 0, 4 do
-        table.insert(colors, {1, 0, 1 - i * 0.2})  -- De mauve à rose
+        table.insert(colors, {1, i * 0.2, 1 - i * 0.2})  -- De mauve à rose
     end
-    
-    -- Rose vers rouge
+
+    -- Rose vers Rouge
     for i = 0, 4 do
-        table.insert(colors, {1, i * 0.2, i * 0.2})  -- De rose à rouge
+        table.insert(colors, {1, 1 - i * 0.2, 1 - i * 0.2})  -- De rose à rouge
+    end
+
+    -- Rouge vers Orange
+    for i = 0, 4 do
+        table.insert(colors, {1, i * 0.2, 0})  -- De rouge à orange
+    end
+
+    -- Orange vers Jaune
+    for i = 0, 4 do
+        table.insert(colors, {1, 1, i * 0.2})  -- De orange à jaune
+    end
+
+    -- Jaune vers Vert
+    for i = 0, 4 do
+        table.insert(colors, {1 - i * 0.2, 1, 0})  -- De jaune à vert
     end
 end
 
--- Fonction pour générer une nouvelle paire de tuyaux
+
+-- Générer une nouvelle paire de tuyaux
 function spawnPipe()
     local pipeHeight = math.random(50, screenHeight - pipeGap - 50)
-
-    -- Créer une paire de tuyaux
     local pipe = {
-        x = screenWidth,  -- Les tuyaux apparaissent à droite de l'écran
-        yTop = pipeHeight - love.graphics.getHeight(),  -- Hauteur du tuyau supérieur (position inversée)
-        yBottom = pipeHeight + pipeGap,  -- Hauteur du tuyau inférieur
+        x = screenWidth,
+        yTop = pipeHeight - love.graphics.getHeight(),
+        yBottom = pipeHeight + pipeGap,
         width = pipeWidth,
-        color = colors[colorIndex]  -- Assigner une couleur au tuyau
+        color = colors[colorIndex],
+        isClosing = false,  
+        closingSpeed = 200,
+        transitionAlpha = 0  -- La transition commence à 0 (100% "line", 0% "fill")
     }
-     -- Incrémenter l'indice de la couleur, et recommencer la séquence si nécessaire
-    colorIndex = colorIndex + 1
-    if colorIndex > #colors then
-        colorIndex = 1
-    end
-    
-    table.insert(pipes, pipe)  -- Ajouter la paire de tuyaux à la table
+    colorIndex = colorIndex % #colors + 1
+    table.insert(pipes, pipe)
 end
 
 function jump()
@@ -95,129 +105,151 @@ function jump()
 end
 
 function checkCollision(pipe)
-    -- Dimensions de l'oiseau
     local birdLeft = pigeon.x
     local birdRight = pigeon.x + pigeon.width
     local birdTop = pigeon.y
     local birdBottom = pigeon.y + pigeon.height
-
-    -- Dimensions du tuyau
     local pipeLeft = pipe.x
     local pipeRight = pipe.x + pipe.width
-    local pipeTop = pipe.yTop
-    local pipeBottom = pipe.yBottom
 
-    -- Collision avec le tuyau supérieur
-    if birdRight > pipeLeft and birdLeft < pipeRight and birdTop < pipeTop + love.graphics.getHeight() then
-        return true
+    if (birdRight > pipeLeft and birdLeft < pipeRight) then
+        if (birdTop < pipe.yTop + love.graphics.getHeight()) or (birdBottom > pipe.yBottom) then
+            return true
+        end
     end
-
-    -- Collision avec le tuyau inférieur
-    if birdRight > pipeLeft and birdLeft < pipeRight and birdBottom > pipeBottom then
-        return true
-    end
-
     return false
 end
 
--- Fonction de mise à jour : gère la logique du jeu
+-- Mise à jour du jeu
 function love.update(dt)
-    -- Cette fonction est appelée à chaque image pour mettre à jour la logique du jeu
-    if GameState.isPaused then
-        return  -- Sortir de love.update si le jeu est en pause
-    end
+    if GameState.isPaused then return end
     
-    -- Gestion de l'apparition des tuyaux à intervalles réguliers
+     -- Rotation permanente : 2π radians (360°) en 4 secondes
+    pigeon.rotation = pigeon.rotation + (math.pi * 2 / 4) * dt
+    -- Réinitialiser la rotation après un tour complet 
+    if pigeon.rotation > math.pi * 2 then
+        pigeon.rotation = pigeon.rotation - math.pi * 2
+    end
+
+    -- Générer de nouveaux tuyaux à intervalles réguliers
     timer = timer + dt
     if timer > pipeSpawnInterval then
-        spawnPipe()  -- Générer un nouveau tuyau
+        spawnPipe()
         timer = 0
     end
 
-    -- Déplacement des tuyaux vers la gauche
-    for i, pipe in ipairs(pipes) do
-        pipe.x = pipe.x - 200 * dt  -- 200 pixels/sec pour le déplacement des tuyaux
-
-        -- Supprimer les tuyaux qui sont sortis de l'écran (hors de vue)
-        if pipe.x + pipeWidth < 0 then
+    -- Déplacement des tuyaux
+    for i = #pipes, 1, -1 do
+        local pipe = pipes[i]
+        pipe.x = pipe.x - 200 * dt
+        
+        -- Supprimer les tuyaux sortis de l'écran
+        if pipe.x + pipe.width < 0 then
             table.remove(pipes, i)
         end
-    end
-    
-    -- Appliquer la gravité sur l'oiseau
-    --pigeon.velocityY = pigeon.velocityY + pigeon.gravity * dt
-
-    -- Mettre à jour la position verticale de l'oiseau
-    --pigeon.y = pigeon.y + pigeon.velocityY * dt
-    if love.keyboard.isDown("up") then
-        pigeon.y = pigeon.y - pigeon.speed * dt
-    end
-    if love.keyboard.isDown("down") then
-        pigeon.y = pigeon.y + pigeon.speed * dt
-    end
-    if love.keyboard.isDown("left") then
-        pigeon.x = pigeon.x - pigeon.speed * dt
-    end
-    if love.keyboard.isDown("right") then
-        pigeon.x = pigeon.x + pigeon.speed * dt
-    end
-
-
-     -- Empêcher l'oiseau de sortir de l'écran
-    if pigeon.y < 0 then
-        pigeon.y = 0
-    end
-    if pigeon.y + pigeon.height > love.graphics.getHeight() then
-        pigeon.y = love.graphics.getHeight() - pigeon.height
-    end
-    if pigeon.x < 0 then
-        pigeon.x = 0
-    end
-    if pigeon.x + pigeon.width > love.graphics.getWidth() then
-        pigeon.x = love.graphics.getWidth() - pigeon.width
-    end
-    
-    -- Vérifier les collisions avec le premier tuyau visible
-   for _, pipe in ipairs(pipes) do
-        if checkCollision(pipe) then
-            print("Collision avec un tuyau !")
-            GameState.isPaused = true  -- Activer la pause lors de la collision
-            break  -- Arrêter la boucle si une collision est détectée
-        end
         
-        -- Vérifier si l'oiseau traverse entre les tuyaux sans collision
-        local birdPassedPipe = (pigeon.x > pipe.x + pipe.width)
-        if birdPassedPipe then
-            -- L'oiseau est passé entre les tuyaux, on change sa couleur
+        -- Fermer les tuyaux si nécessaire
+        if pipe.isClosing then
+            pipe.transitionAlpha = math.min(pipe.transitionAlpha + dt, 1)
+
+            -- Les tuyaux se rapprochent vers le centre
+            pipe.yTop = pipe.yTop + pipe.closingSpeed * dt
+            pipe.yBottom = pipe.yBottom - pipe.closingSpeed * dt
+
+            -- Si les tuyaux se rejoignent, arrêter la fermeture
+            if pipe.yTop + love.graphics.getHeight() >= pipe.yBottom then
+                pipe.yTop = pipe.yBottom - love.graphics.getHeight()
+            end
+        end
+    end
+
+    -- Déplacement de l'oiseau (Pigeon)
+    if love.keyboard.isDown("up") then pigeon.y = pigeon.y - pigeon.speed * dt end
+    if love.keyboard.isDown("down") then pigeon.y = pigeon.y + pigeon.speed * dt end
+    if love.keyboard.isDown("left") then pigeon.x = pigeon.x - pigeon.speed * dt end
+    if love.keyboard.isDown("right") then pigeon.x = pigeon.x + pigeon.speed * dt end
+
+    -- Empêcher l'oiseau de sortir de l'écran
+    pigeon.y = math.max(0, math.min(love.graphics.getHeight() - pigeon.height, pigeon.y))
+    pigeon.x = math.max(0, math.min(love.graphics.getWidth() - pigeon.width, pigeon.x))
+
+    -- Vérification des collisions et changement de couleur
+    for _, pipe in ipairs(pipes) do
+        if checkCollision(pipe) then
+            GameState.isPaused = true
+            break
+        end
+        if pigeon.x > pipe.x + pipe.width then
             pigeon.color = pipe.color
+            pipe.isClosing = true
+        end
+    end
+
+    -- Générer une particule
+    local newParticle = {
+        x = pigeon.x - 5,
+        y = pigeon.y + pigeon.height / 2,
+        size = math.random(6, 8),
+        life = 0.75,
+        rotation = math.random() * math.pi * 2,
+        rotationSpeed = math.random(-2, 2),
+        speedX = math.random(-50, -20),
+        speedY = math.random(-10, 10)
+    }
+    table.insert(particles, newParticle)
+
+    -- Mise à jour des particules
+    for i = #particles, 1, -1 do
+        local p = particles[i]
+        p.life = p.life - dt
+        p.x = p.x + p.speedX * dt
+        p.y = p.y + p.speedY * dt
+        p.rotation = p.rotation + p.rotationSpeed * dt
+        if p.life <= 0 then
+            table.remove(particles, i)
         end
     end
 end
 
--- Fonction d'affichage : dessine les objets à l'écran
+-- Dessiner le jeu
 function love.draw()
-    -- Cette fonction est appelée à chaque image pour dessiner sur l'écran
-    
-    
-    -- Parcourir la table de tuyaux pour les dessiner
-    for _, pipe in ipairs(pipes) do
-        love.graphics.setColor(pipe.color) -- Utiliser la couleur assignée au tuyau
-
-        -- Dessiner le tuyau supérieur (partie inversée en haut)
-        love.graphics.setLineWidth(1)  -- Épaisseur du contour à 1 pixel
-        love.graphics.rectangle("line", pipe.x, pipe.yTop, pipe.width, love.graphics.getHeight())
-
-        -- Dessiner le tuyau inférieur
-        love.graphics.rectangle("line", pipe.x, pipe.yBottom, pipe.width, love.graphics.getHeight() - pipe.yBottom)
+    -- Dessiner les particules
+    for _, p in ipairs(particles) do
+        love.graphics.setColor(pigeon.color[1], pigeon.color[2], pigeon.color[3], p.life)
+        love.graphics.push()
+        love.graphics.translate(p.x, p.y)
+        love.graphics.rotate(p.rotation)
+        love.graphics.rectangle("line", -p.size / 2, -p.size / 2, p.size, p.size)
+        love.graphics.pop()
     end
-    
-    love.graphics.setColor(pigeon.color) -- Dessiner l'oiseau avec sa couleur actuelle
-    love.graphics.rectangle("fill", pigeon.x, pigeon.y, pigeon.width, pigeon.height)
-    
-    
-       -- Afficher un message de pause si le jeu est en pause
+
+    -- Dessiner les tuyaux
+    for _, pipe in ipairs(pipes) do
+        -- Couleur originale du tuyau
+        local r, g, b = pipe.color[1], pipe.color[2], pipe.color[3]
+
+        -- Dessiner la version "line" avec une transparence qui diminue
+        love.graphics.setColor(r, g, b, 1 - pipe.transitionAlpha)
+        love.graphics.rectangle("line", pipe.x, pipe.yTop, pipe.width, love.graphics.getHeight())
+        love.graphics.rectangle("line", pipe.x, pipe.yBottom, pipe.width, love.graphics.getHeight() - pipe.yBottom)
+
+        -- Dessiner la version "fill" avec une transparence qui augmente
+        love.graphics.setColor(r, g, b, pipe.transitionAlpha)
+        love.graphics.rectangle("fill", pipe.x, pipe.yTop, pipe.width, love.graphics.getHeight())
+        love.graphics.rectangle("fill", pipe.x, pipe.yBottom, pipe.width, love.graphics.getHeight() - pipe.yBottom)
+    end
+
+    -- Dessiner l'oiseau
+    love.graphics.setColor(pigeon.color)
+    love.graphics.push()  
+    love.graphics.translate(pigeon.x + pigeon.width / 2, pigeon.y + pigeon.height / 2)  
+    love.graphics.rotate(pigeon.rotation)  
+    love.graphics.rectangle("fill", -pigeon.width / 2, -pigeon.height / 2, pigeon.width, pigeon.height) 
+    love.graphics.pop()
+
+    -- Afficher le message de pause
     if GameState.isPaused then
-        love.graphics.setColor(1, 0, 0)  -- Couleur rouge pour le texte
+        love.graphics.setColor(1, 0, 0)
         love.graphics.printf('Pause - Press "P" to resume', 0, love.graphics.getHeight() / 2, love.graphics.getWidth(), "center")
     end
 end

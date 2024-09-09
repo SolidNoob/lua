@@ -1,14 +1,11 @@
 -- Gestion des entrées clavier
 function love.keypressed(key)
-   if key == "p" then
-        GameState.isPaused = not GameState.isPaused  -- Inverser l'état de pause
-        print("Pause toggle: ", GameState.isPaused)  -- Vérifier avec un print
+    if key == "p" then
+        GameState.isPaused = not GameState.isPaused
     end
 
-    if not GameState.isPaused then 
-      if key == "space" then
+    if not GameState.isPaused and key == "space" then
         jump()
-      end
     end
 end
 
